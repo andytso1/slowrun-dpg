@@ -459,7 +459,8 @@ class CausalSelfAttention(nn.Module):
             if self.n_kv_head != self.n_head:
                 v_ref = v_ref.repeat_interleave(self.n_head // self.n_kv_head, dim=2)
             alpha = torch.tanh(xsa_alpha).type_as(y).view(1, 1, self.n_head, 1)
-            v_hat = v_ref / v_ref.square().sum(dim=-1, keepdim=True).sqrt().clamp_min(self.xsa_eps)
+            # clamp first then sqrt for stability around 0
+            v_hat = v_ref / v_ref.square().sum(dim=-1, keepdim=True).clamp_min(self.xsa_eps ** 2).sqrt()
             xsa_coeff = ((y * v_hat).sum(dim=-1, keepdim=True)) * alpha
             y = torch.addcmul(y, v_hat, xsa_coeff, value=-1.0)
         # Per-head attention gate (sparse gated attention, zero-init → sigmoid(0)=0.5 at start)
